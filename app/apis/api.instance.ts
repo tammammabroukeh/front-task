@@ -2,7 +2,7 @@ import type { ZodType } from "zod";
 
 import { ErrorMessages } from "@/constants/errors";
 
-import { FetchError } from "./types/error";
+import { FetchError } from "./types/fetch-error";
 import { normalizeUrl } from "../utils/normalizeUrl";
 
 /**

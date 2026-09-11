@@ -5,7 +5,7 @@ import { z } from "zod";
 process.env.BASE_URL = "https://api.test";
 
 import apiFetcher from "@/app/apis/api.instance";
-import { FetchError, isFetchError } from "@/app/apis/types/error";
+import { FetchError, isFetchError } from "@/app/apis/types/fetch-error";
 
 type FetchFn = typeof fetch;
 const realFetch = globalThis.fetch;
