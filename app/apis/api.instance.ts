@@ -76,10 +76,10 @@ export default async function apiFetcher<T>(
   const timeoutId = setTimeout(() => controller.abort(), getApiTimeout());
 
   const isFormData = rest.body instanceof FormData;
+  const hasBody = rest.body != null;
   const init: RequestInit = {
     method: rest.method ?? "GET",
-    // For FormData, let the runtime set the multipart boundary itself.
-    headers: buildHeaders(headers, skipDefaultHeaders || isFormData),
+    headers: buildHeaders(headers, hasBody, skipDefaultHeaders || isFormData),
     signal: controller.signal,
     ...rest,
   };
@@ -104,17 +104,30 @@ export default async function apiFetcher<T>(
 // Helpers
 // ---------------------------------------------------------------------------
 
+// A browser-like User-Agent. Some upstreams (e.g. FakeStoreAPI behind
+// Cloudflare) challenge requests from datacenter IPs that look like bare
+// server fetches. Presenting a realistic UA + Accept reduces those blocks.
+const BROWSER_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
 function buildHeaders(
   callerHeaders: HeadersInit | undefined,
+  hasBody: boolean,
   skipContentType: boolean,
 ): HeadersInit {
-  return skipContentType
-    ? { Accept: "application/json", ...callerHeaders }
-    : {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...callerHeaders,
-      };
+  const headers: Record<string, string> = {
+    Accept: "application/json, text/plain, */*",
+    "User-Agent": BROWSER_USER_AGENT,
+  };
+
+  // Only send Content-Type when there's actually a body. Sending it on a GET
+  // is meaningless and can look bot-like to WAFs. For FormData, let the runtime
+  // set the multipart boundary itself.
+  if (hasBody && !skipContentType) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  return { ...headers, ...callerHeaders };
 }
 
 async function handleResponse<T>(
