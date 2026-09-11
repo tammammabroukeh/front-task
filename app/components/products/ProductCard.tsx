@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import type { IProduct } from "@/app/apis/services/products/interface";
-import { formatPrice, titleCase } from "@/app/utils/format";
+import { formatPrice, titleCase } from "@/utils/format";
 
 export function ProductCard({ product }: { product: IProduct }) {
   return (
