@@ -1,208 +1,200 @@
-"use server";
-import { FetchError } from "./types/error";
-import { normalizeUrl } from "../utils/normalizeUrl";
-import { RequestInit } from "next/dist/server/web/spec-extension/request";
+import type { ZodType } from "zod";
+
 import { ErrorMessages } from "@/constants/errors";
 
-// Configuration
-const baseUrl = process.env.BASE_URL;
-const aiBaseUrl = process.env.AI_BASE_URL
-const DEFAULT_REVALIDATION_TIME = 3600 * 3; // 3 hours
-const API_TIMEOUT = Number(process.env.NEXT_PUBLIC_API_TIMEOUT || 50000);
-const MAX_RETRIES = 2; // Retry failed requests up to 2 times
+import { FetchError } from "./types/error";
+import { normalizeUrl } from "../utils/normalizeUrl";
 
 /**
- * Enhanced API fetcher with error handling, retry logic, and locale support
- * @param path - API endpoint path
- * @param requestInit - Fetch request options
- * @param retryCount - Current retry attempt (internal use)
- * @returns Promise with the response data
+ * Base API fetcher for the whole app.
+ *
+ * Responsibilities (single source of truth for HTTP concerns):
+ * - Resolve the request URL against `BASE_URL`.
+ * - Apply a request timeout via `AbortController`.
+ * - Retry transient failures (timeout / network) with exponential backoff.
+ * - Normalize every failure into a typed {@link FetchError}.
+ * - Optionally validate the response body against a Zod schema.
+ *
+ * It intentionally holds no business logic — feature repositories build on top
+ * of it (see `apis/services/<feature>/index.ts`).
  */
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+/** Request timeout in milliseconds. Read lazily so tests/env can override it. */
+function getApiTimeout(): number {
+  return Number(process.env.NEXT_PUBLIC_API_TIMEOUT ?? 15000);
+}
+
+/** Maximum number of retries for transient (timeout/network) failures. */
+const MAX_RETRIES = 2;
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/**
+ * Extra options layered on top of the standard `fetch` init.
+ * `next` (revalidate/tags) is provided by Next.js' global `RequestInit`
+ * augmentation, so callers can pass caching options directly.
+ */
+export interface ApiRequestOptions extends RequestInit {
+  /**
+   * When provided, the parsed JSON body is validated against this schema.
+   * A validation failure is surfaced as a `FetchError` of type `"validation"`.
+   */
+  schema?: ZodType;
+  /** Skip default JSON headers (e.g. when sending `FormData`). */
+  skipDefaultHeaders?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 export default async function apiFetcher<T>(
   path: string,
-  requestInit?: RequestInit & { skipDefaultHeaders?: boolean },
-  retryCount: number = 0,
-  overridedBaseUrl?: boolean,
+  options: ApiRequestOptions = {},
+  retryCount = 0,
 ): Promise<T> {
-  const myBaseUrl = overridedBaseUrl ? aiBaseUrl : baseUrl
-  console.log("myBaseUrl", myBaseUrl);
-  const url = normalizeUrl(myBaseUrl, path);
-  const timeout = API_TIMEOUT;
+  const baseUrl = process.env.BASE_URL;
+  if (!baseUrl) {
+    throw new FetchError(
+      "BASE_URL is not configured. Set it in your environment.",
+      null,
+      undefined,
+      "unknown",
+    );
+  }
+
+  const { schema, skipDefaultHeaders, headers, ...rest } = options;
+
+  const url = normalizeUrl(baseUrl, path);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-  console.log('requestInit', requestInit)
-  
-  // Check if body is FormData - if so, don't set Content-Type (let browser handle it)
-  const isFormData = requestInit?.body instanceof FormData;
-  const skipDefaultHeaders = requestInit?.skipDefaultHeaders || isFormData;
-  
-  // Build headers conditionally
-  const headers: HeadersInit = skipDefaultHeaders
-    ? {
-        // Don't set Content-Type for FormData
-        Accept: "application/json",
-        ...requestInit?.headers,
-      }
+  const timeoutId = setTimeout(() => controller.abort(), getApiTimeout());
+
+  const isFormData = rest.body instanceof FormData;
+  const init: RequestInit = {
+    method: rest.method ?? "GET",
+    // For FormData, let the runtime set the multipart boundary itself.
+    headers: buildHeaders(headers, skipDefaultHeaders || isFormData),
+    signal: controller.signal,
+    ...rest,
+  };
+
+  try {
+    const response = await fetch(url, init);
+    clearTimeout(timeoutId);
+    return await handleResponse<T>(response, schema);
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (isRetryable(error) && retryCount < MAX_RETRIES) {
+      await backoff(retryCount);
+      return apiFetcher<T>(path, options, retryCount + 1);
+    }
+
+    throw normalizeError(error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function buildHeaders(
+  callerHeaders: HeadersInit | undefined,
+  skipContentType: boolean,
+): HeadersInit {
+  return skipContentType
+    ? { Accept: "application/json", ...callerHeaders }
     : {
         "Content-Type": "application/json",
         Accept: "application/json",
-        ...requestInit?.headers,
+        ...callerHeaders,
       };
-  
-  console.log('skipDefaultHeaders', skipDefaultHeaders);
-  console.log('isFormData', isFormData);
-  console.log('headers', headers);
-  
-  // Determine cache/revalidate settings.
-  // IMPORTANT: `cache: "no-cache"` opts a request OUT of the Next.js Data Cache,
-  // which also disables `next.tags` and makes `revalidateTag` a no-op.
-  // So when the caller provides `next` options (tags/revalidate), we must NOT
-  // force `no-cache` — otherwise the tag is never registered and cannot be revalidated.
-  const hasCallerNextOptions = !!requestInit?.next;
-  const cacheSetting =
-    requestInit?.cache ?? (hasCallerNextOptions ? undefined : "no-cache");
-
-  // `next` revalidate/tags cannot be combined with `cache: "no-store"`/"no-cache"
-  // (Next.js warns and the options conflict). Only apply a `next` object when we
-  // aren't forcing the request out of the cache.
-  const isUncached = cacheSetting === "no-store" || cacheSetting === "no-cache";
-  const nextSetting = requestInit?.next ??
-    (isUncached ? undefined : { revalidate: DEFAULT_REVALIDATION_TIME });
-
-  // Strip the caller's cache/next so our resolved values are the only ones applied
-  // (prevents a leftover `next` from conflicting with a `no-store`/`no-cache` cache).
-  const { cache: _callerCache, next: _callerNext, skipDefaultHeaders: _skip, ...restRequestInit } =
-    requestInit ?? {};
-
-    console.log('_callerCache', _callerCache)
-    console.log('_callerNext', _callerNext)
-    console.log('_skip', _skip)
-
-  // Merge default options with provided options
-  const init: RequestInit = {
-    method: requestInit?.method ?? "GET",
-    headers,
-    signal: controller.signal,
-    ...restRequestInit,
-    // Only set cache when we actually have a value (avoid conflicting with next.tags)
-    ...(cacheSetting ? { cache: cacheSetting } : {}),
-    ...(nextSetting ? { next: nextSetting } : {}),
-  };
-  console.log(
-    `Fetching: ${url} (attempt ${retryCount + 1}/${MAX_RETRIES + 1})`,
-  );
-  console.log("init", init);
-  try {
-    const response = await fetch(url, init);
-    console.log('response', response)
-    console.log(
-      `Fetch Response status:${response.status} statusText:${response.statusText} Ok:${response.ok}`,
-    );
-    console.log(
-      url,
-      JSON.stringify(response.url),
-      JSON.stringify(response.body),
-    );
-
-    // Clean up timeout regardless of outcome
-    clearTimeout(timeoutId);
-
-    // Handle response based on status and content type
-    return await handleResponse<T>(response);
-  } catch (error) {
-    console.log('error', error)
-    clearTimeout(timeoutId);
-
-    // Retry logic for timeout and network errors
-    const isRetryableError =
-      (error instanceof DOMException && error.name === "AbortError") ||
-      (error instanceof TypeError && error.message.includes("fetch failed"));
-
-    if (isRetryableError && retryCount < MAX_RETRIES) {
-      console.log(`Retrying request (${retryCount + 1}/${MAX_RETRIES})...`);
-      // Wait before retrying (exponential backoff)
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000 * (retryCount + 1)),
-      );
-      return apiFetcher<T>(path, requestInit, retryCount + 1);
-    }
-
-    return handleFetchError(error, timeout);
-  }
 }
-// if (
-//   !contentType ||
-//   !contentType.includes("application/json") ||
-//   !response.ok
-// ) {
-//   errorInfo =
-//     !contentType || !contentType.includes("application/json")
-//       ? `Failed to read response body (${response.status} ${response.statusText})`
-//       : await response.json();
-//   throw new FetchError(undefined, errorInfo, response.status);
-// }
-/**
- * Handle API response based on status code and content type
- */
-async function handleResponse<T>(response: Response): Promise<T> {
-  const contentType = response.headers.get("content-type");
-  const isJsonResponse =
-    contentType && contentType.includes("application/json");
-  console.log("isJsonResponse", isJsonResponse);
-  console.log("response", response);
-  // Handle successful responses
+
+async function handleResponse<T>(
+  response: Response,
+  schema?: ZodType,
+): Promise<T> {
+  const contentType = response.headers.get("content-type") ?? "";
+  const isJson = contentType.includes("application/json");
+
   if (response.ok) {
-    // Handle no-content responses
+    // 204 No Content — nothing to parse.
     if (response.status === 204) {
       return true as T;
     }
 
-    // Parse and return JSON response
-    if (isJsonResponse) {
-      return await response.json();
+    // FakeStoreAPI returns 200 with an empty body for missing resources;
+    // parse defensively so an empty body becomes `null` instead of throwing.
+    const raw = await response.text();
+    const data: unknown = raw.length > 0 && isJson ? JSON.parse(raw) : null;
+
+    if (schema) {
+      const result = schema.safeParse(data);
+      if (!result.success) {
+        throw new FetchError(
+          ErrorMessages.Validation,
+          result.error.issues,
+          response.status,
+          "validation",
+        );
+      }
+      return result.data as T;
     }
+
+    return data as T;
   }
 
-  // Handle error responses
-  let errorInfo: unknown;
-
+  // Non-2xx — try to surface the server's error payload.
+  let info: unknown;
   try {
-    // Try to parse error response as JSON
-    errorInfo = isJsonResponse
+    info = isJson
       ? await response.json()
-      : `Failed to read response body (${response.status} ${response.statusText})`;
-  } catch (parseError) {
-    errorInfo = `Error parsing response: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
+      : await response.text();
+  } catch {
+    info = null;
   }
 
-  throw new FetchError(undefined, errorInfo, response.status);
+  throw new FetchError(undefined, info, response.status, "http");
 }
 
-/**
- * Handle fetch errors and categorize them appropriately
- */
-function handleFetchError(error: unknown, timeout: number): never {
-  console.log('error', error)
-  // Handle abort errors specifically
-  if (error instanceof DOMException && error.name === "AbortError") {
-    console.error("Request timed out after", timeout, "ms");
-    throw new FetchError(
-      "Request timed out. Please try again later.",
-      null,
-      408,
-    );
-  }
+/** Timeout aborts and low-level network errors are worth retrying. */
+function isRetryable(error: unknown): boolean {
+  const isAbort = error instanceof DOMException && error.name === "AbortError";
+  const isNetwork =
+    error instanceof TypeError && /fetch failed|network/i.test(error.message);
+  return isAbort || isNetwork;
+}
 
-  // Preserve FetchError instances
+function backoff(retryCount: number): Promise<void> {
+  const delay = 1000 * (retryCount + 1);
+  return new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+/** Convert any thrown value into a typed {@link FetchError}. */
+function normalizeError(error: unknown): FetchError {
   if (error instanceof FetchError) {
-    console.error(`API Error (${error.status}):`, error.message);
-    throw error;
+    return error;
   }
 
-  // Log and wrap other errors
-  console.error("Fetch Error:", error);
-  throw new FetchError(
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return new FetchError(ErrorMessages.Timeout, null, 408, "timeout");
+  }
+
+  if (error instanceof TypeError) {
+    return new FetchError(ErrorMessages.Network, error.message, undefined, "network");
+  }
+
+  return new FetchError(
     ErrorMessages.Default,
     error instanceof Error ? error.message : error,
+    undefined,
+    "unknown",
   );
 }
