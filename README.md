@@ -59,8 +59,34 @@ Zod validation, error handling strategy._
 
 ## Caching Decision
 
-_TODO: the single explicit caching decision for the product list and its
-justification._
+**The single explicit caching decision is on the product list:**
+
+```ts
+// app/(shop)/products/page.tsx
+export const revalidate = 300; // Incremental Static Regeneration, 5 minutes
+```
+
+**Why ISR (time-based `revalidate`) for the list:**
+
+- The FakeStore catalog changes infrequently, so re-fetching it on every single
+  request would waste an upstream round-trip for data that is effectively
+  static between updates.
+- ISR gives the best of both worlds: responses are served from a prerendered,
+  CDN-cacheable payload, and the data is transparently refreshed at most once
+  every 5 minutes. Visitors never wait on the origin for stale-but-acceptable
+  catalog data.
+- It is the simplest decision to reason about and justify for a read-only,
+  low-volatility list.
+
+**Interaction with SSR:** because the list page reads `?page=` from
+`searchParams`, the *route* is rendered dynamically per request (true SSR),
+while the *data fetch* underneath (`productsRepository.getAllProducts`) inherits
+the route-level `revalidate` and is therefore cached. So the page is
+server-rendered on demand, but the catalog data is not re-fetched on every hit.
+
+**Contrast with the detail page:** the product detail page uses
+`cache: "no-store"` to demonstrate genuine per-request SSR where freshness
+matters more than cache reuse.
 
 ## SSR Decisions Table
 
