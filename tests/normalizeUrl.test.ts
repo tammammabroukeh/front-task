@@ -1,6 +1,6 @@
 import { test, expect, describe } from "bun:test";
 
-import { normalizeUrl } from "@/app/utils/normalizeUrl";
+import { normalizeUrl } from "@/utils/normalizeUrl";
 
 describe("normalizeUrl", () => {
   test("joins base and path with a single slash", () => {
