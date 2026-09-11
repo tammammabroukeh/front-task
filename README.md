@@ -54,8 +54,33 @@ See `.env.example`. Required:
 
 ## Architectural Decisions
 
-_TODO (filled in as the project is built): API layer tiers, repository pattern,
-Zod validation, error handling strategy._
+**Layered API access.** HTTP concerns live in one place and business/UI code
+never touches `fetch` directly:
+
+- `app/apis/api.instance.ts` — the base `apiFetcher<T>()`: URL resolution,
+  `AbortController` timeout, retry-with-backoff for transient failures, optional
+  Zod response validation, and normalization of every failure into a typed
+  `FetchError`.
+- `app/apis/services/products/` — a **repository** (`index.ts`) exposing typed
+  methods, and `interface.ts` holding Zod schemas that are the single source of
+  truth for the product types (`z.infer`).
+- `constants/errors.ts` / `app/apis/types/fetch-error.ts` — shared, user-facing
+  error messages and the `FetchError` class (`message`, `info`, `status`,
+  `type`).
+
+**Validation at the boundary.** Every response is parsed with Zod, so the rest
+of the app can trust its types. A parse failure surfaces as a
+`FetchError` of type `"validation"` rather than leaking malformed data.
+
+**Error handling strategy.** Repositories throw typed `FetchError`s; route-level
+`error.tsx` boundaries (Client Components using the Next 16 `retry` prop)
+present a friendly message and a retry action. Missing resources are modeled
+explicitly (see the FakeStore not-found note below) rather than as thrown
+errors.
+
+**Server-first.** Pages are Server Components that call repositories directly.
+Interactivity (login form, sign-out) is delegated to small `"use client"`
+components, keeping the data path on the server.
 
 ## Caching Decision
 
@@ -90,18 +115,52 @@ matters more than cache reuse.
 
 ## SSR Decisions Table
 
-| Page             | Rendering type | Reason |
-| ---------------- | -------------- | ------ |
-| `/products`      | _TODO_         | _TODO_ |
-| `/products/[id]` | _TODO_         | _TODO_ |
-| `/admin`         | _TODO_         | _TODO_ |
+| Page             | Rendering type            | Reason |
+| ---------------- | ------------------------- | ------ |
+| `/products`      | SSR + ISR-cached data     | Rendered on demand because it reads `?page=` from `searchParams`, but the catalog fetch is cached via `revalidate = 300`. Low-volatility data served fast, refreshed every 5 minutes. |
+| `/products/[id]` | SSR (fully dynamic)       | `dynamic = "force-dynamic"` + `cache: "no-store"`. Demonstrates genuine per-request rendering; also where the not-found redirect and dynamic metadata are decided per request. |
+| `/admin`         | SSR (dynamic, auth-gated) | `dynamic = "force-dynamic"`; the session is read server-side via `auth()` on every request and unauthenticated users are redirected before any content renders. |
+
+> Note on terminology: this project uses the **classic** rendering model
+> (route segment config + `fetch` cache options). "ISR" here means the list's
+> data is time-revalidated (`revalidate = 300`); "SSR" means the route is
+> rendered per request. No client-side rendering (CSR) is used for these pages.
 
 ## Hardest Challenge
 
-_TODO._
+The most instructive challenge was that the target project runs **Next.js 16**,
+not 14, and several assumptions differ from older App Router material:
 
----
+- `params` and `searchParams` are now **Promises** and must be awaited.
+- `error.tsx` receives a **`retry`** prop (not `reset`).
+- Middleware is now **`proxy.ts`**.
+- Next applies the reserved **`error` file convention** (which forces a Client
+  Component) to *any* `error.ts` under `app/`. A plain `app/apis/types/error.ts`
+  broke the production build the moment it entered a route's import graph. The
+  fix was renaming it to `fetch-error.ts`.
+- FakeStoreAPI returns **HTTP 200 with an empty body** for a missing product id
+  (not a 404), so the detail page cannot rely on status codes. The repository
+  detects the empty/invalid payload (parses empty body to `null`, Zod-guards the
+  rest) and the page issues a real server redirect from there.
 
-## Deployment
+## Verification
 
-Deployed on Vercel. _Live URL: TODO._
+```bash
+bun run test    # bun's native test runner (fetcher + repository units)
+bunx tsc --noEmit
+bun run lint
+bun run build
+```
+
+## Deploying to Vercel
+
+1. Push this repository to a private Git remote and import it in Vercel.
+2. Set the following Project Environment Variables:
+   - `BASE_URL` = `https://fakestoreapi.com`
+   - `NEXTAUTH_SECRET` = a long random string (e.g. `openssl rand -base64 32`)
+   - `NEXTAUTH_URL` = your Vercel deployment URL
+   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` = the demo admin credentials
+   - (optional) `NEXT_PUBLIC_API_TIMEOUT`
+3. Vercel auto-detects Next.js and builds with `next build`.
+
+_Live URL: TODO (add after deployment)._
