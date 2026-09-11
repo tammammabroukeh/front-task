@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { productsRepository } from "@/app/apis/services/products";
 import { Pagination } from "@/app/components/products/Pagination";
 import { ProductCard } from "@/app/components/products/ProductCard";
+import { applySimulation, parseSimulate } from "@/app/utils/devSimulate";
 
 export const metadata: Metadata = {
   title: "Products",
@@ -20,13 +21,20 @@ export const metadata: Metadata = {
 export const revalidate = 300; // seconds (5 minutes)
 
 interface ProductsPageProps {
-  searchParams: Promise<{ page?: string | string[] }>;
+  searchParams: Promise<{
+    page?: string | string[];
+    simulate?: string | string[];
+  }>;
 }
 
 export default async function ProductsPage({
   searchParams,
 }: ProductsPageProps) {
-  const { page } = await searchParams;
+  const { page, simulate } = await searchParams;
+
+  // Dev-only: `?simulate=slow` reveals loading.tsx, `?simulate=error` triggers error.tsx.
+  await applySimulation(parseSimulate(simulate));
+
   const requestedPage = Number(Array.isArray(page) ? page[0] : page) || 1;
 
   const { items, page: currentPage, totalPages, totalItems } =
