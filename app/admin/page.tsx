@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { ROUTES } from "@/constants/routes";
 import { auth } from "@/lib/auth";
 
 import { SignOutButton } from "./SignOutButton";
@@ -25,7 +26,7 @@ export default async function AdminPage() {
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/admin/login?callbackUrl=/admin");
+    redirect(ROUTES.ADMIN_LOGIN_WITH_CALLBACK(ROUTES.ADMIN));
   }
 
   return (

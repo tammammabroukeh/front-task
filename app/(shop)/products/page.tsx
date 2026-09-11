@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { productsRepository } from "@/app/apis/services/products";
+import { ROUTES } from "@/constants/routes";
 import { Pagination } from "@/components/products/Pagination";
 import { ProductCard } from "@/components/products/ProductCard";
 import { applySimulation, parseSimulate } from "@/utils/devSimulate";
@@ -61,7 +62,7 @@ export default async function ProductsPage({
       <Pagination
         page={currentPage}
         totalPages={totalPages}
-        basePath="/products"
+        basePath={ROUTES.PRODUCTS}
       />
     </main>
   );

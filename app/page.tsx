@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { ROUTES } from "@/constants/routes";
+
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-24 text-center">
@@ -14,13 +16,13 @@ export default function Home() {
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
         <Link
-          href="/products"
+          href={ROUTES.PRODUCTS}
           className="inline-flex h-11 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90"
         >
           Browse products
         </Link>
         <Link
-          href="/admin"
+          href={ROUTES.ADMIN}
           className="inline-flex h-11 items-center justify-center rounded-full border border-foreground/20 px-6 text-sm font-medium transition-colors hover:bg-foreground/5"
         >
           Admin area

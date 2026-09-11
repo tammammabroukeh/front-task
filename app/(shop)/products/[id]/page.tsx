@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { loadProduct } from "@/app/apis/services/products";
+import { ROUTES } from "@/constants/routes";
 import { formatPrice, titleCase } from "@/utils/format";
 
 /**
@@ -49,13 +50,13 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
   // 200 + empty body for unknown ids, so the repository resolves to null and
   // we redirect here (issues a 307 before any UI is sent).
   if (!product) {
-    redirect("/product-not-found");
+    redirect(ROUTES.PRODUCT_NOT_FOUND);
   }
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12">
       <nav className="mb-8 text-sm text-foreground/60">
-        <Link href="/products" className="hover:text-foreground">
+        <Link href={ROUTES.PRODUCTS} className="hover:text-foreground">
           ← Back to products
         </Link>
       </nav>

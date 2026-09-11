@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
+import { ROUTES } from "@/constants/routes";
 import { auth } from "@/lib/auth";
 
 import { LoginForm } from "./LoginForm";
@@ -15,7 +16,7 @@ export default async function AdminLoginPage() {
   // Already signed in — skip the form.
   const session = await auth();
   if (session?.user) {
-    redirect("/admin");
+    redirect(ROUTES.ADMIN);
   }
 
   return (

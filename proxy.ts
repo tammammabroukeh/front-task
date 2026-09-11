@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { ROUTES } from "@/constants/routes";
+
 /**
  * Request-level (edge) guard for the admin area.
  *
@@ -27,7 +29,7 @@ export function proxy(request: NextRequest) {
   );
 
   if (!hasSession) {
-    const loginUrl = new URL("/admin/login", request.url);
+    const loginUrl = new URL(ROUTES.ADMIN_LOGIN, request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
