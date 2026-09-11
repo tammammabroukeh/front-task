@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { ROUTES } from "@/constants/routes";
+
 export const metadata: Metadata = {
   title: "Product not found",
   description: "The product you are looking for does not exist.",
@@ -22,7 +24,7 @@ export default function ProductNotFoundPage() {
         </p>
       </div>
       <Link
-        href="/products"
+        href={ROUTES.PRODUCTS}
         className="inline-flex h-11 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90"
       >
         Back to products

@@ -1,52 +1,19 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-
-import { loginSchema, type LoginFormValues } from "./schema";
+import { useLogin } from "@/hooks/useLogin";
 
 export function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/admin";
-
   const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
-  });
-
-  const onSubmit = async (values: LoginFormValues) => {
-    const result = await signIn("credentials", {
-      ...values,
-      redirect: false,
-    });
-
-    if (!result || result.error) {
-      // Server rejected the credentials — surface as a form-level error.
-      setError("root", {
-        type: "server",
-        message: "Invalid email or password.",
-      });
-      return;
-    }
-
-    router.replace(callbackUrl);
-    router.refresh();
-  };
+    form: {
+      register,
+      formState: { errors },
+    },
+    onSubmit,
+    isSubmitting,
+  } = useLogin();
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="flex w-full flex-col gap-4"
-      noValidate
-    >
+    <form onSubmit={onSubmit} className="flex w-full flex-col gap-4" noValidate>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-sm font-medium">
           Email

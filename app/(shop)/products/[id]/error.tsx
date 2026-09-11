@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 
 import { ErrorMessages } from "@/constants/errors";
+import { ROUTES } from "@/constants/routes";
 
 /** Error boundary for the product detail route (Next 16 `retry` prop). */
 export default function ProductDetailError({
@@ -37,7 +38,7 @@ export default function ProductDetailError({
           Try again
         </button>
         <Link
-          href="/products"
+          href={ROUTES.PRODUCTS}
           className="inline-flex h-11 items-center justify-center rounded-full border border-foreground/20 px-6 text-sm font-medium transition-colors hover:bg-foreground/5"
         >
           Back to products

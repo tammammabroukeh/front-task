@@ -2,6 +2,8 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 
+import { ROUTES } from "@/constants/routes";
+
 /**
  * NextAuth v5 (Auth.js) configuration.
  *
@@ -22,7 +24,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     maxAge: 60 * 60, // 1 hour
   },
   pages: {
-    signIn: "/admin/login",
+    signIn: ROUTES.ADMIN_LOGIN,
   },
   providers: [
     Credentials({

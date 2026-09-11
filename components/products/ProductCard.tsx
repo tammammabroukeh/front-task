@@ -2,12 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 
 import type { IProduct } from "@/app/apis/services/products/interface";
+import { ROUTES } from "@/constants/routes";
 import { formatPrice, titleCase } from "@/utils/format";
 
 export function ProductCard({ product }: { product: IProduct }) {
   return (
     <Link
-      href={`/products/${product.id}`}
+      href={ROUTES.PRODUCT_DETAIL(product.id)}
       className="group flex flex-col overflow-hidden rounded-xl border border-foreground/10 bg-background transition-shadow hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
     >
       <div className="relative aspect-square w-full bg-white p-6">
