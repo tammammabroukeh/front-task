@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 import { productsRepository } from "@/app/apis/services/products";
 import { Pagination } from "@/app/components/products/Pagination";
 import { ProductCard } from "@/app/components/products/ProductCard";
-import { applySimulation, parseSimulate } from "@/app/utils/devSimulate";
+import { applySimulation, parseSimulate } from "@/utils/devSimulate";
 
 export const metadata: Metadata = {
   title: "Products",
-  description: "Browse the full FakeStore catalog.",
+  description: "Browse the full Store catalog.",
 };
 
 /**

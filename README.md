@@ -1,4 +1,4 @@
-# FakeStore — SSR Product Showcase
+# Store — SSR Product Showcase
 
 A focused product-showcase application built with the **Next.js 16 App Router**,
 **TypeScript**, and **Tailwind CSS**, powered by the free
@@ -151,16 +151,3 @@ bunx tsc --noEmit
 bun run lint
 bun run build
 ```
-
-## Deploying to Vercel
-
-1. Push this repository to a private Git remote and import it in Vercel.
-2. Set the following Project Environment Variables:
-   - `BASE_URL` = `https://fakestoreapi.com`
-   - `NEXTAUTH_SECRET` = a long random string (e.g. `openssl rand -base64 32`)
-   - `NEXTAUTH_URL` = your Vercel deployment URL
-   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` = the demo admin credentials
-   - (optional) `NEXT_PUBLIC_API_TIMEOUT`
-3. Vercel auto-detects Next.js and builds with `next build`.
-
-_Live URL: TODO (add after deployment)._

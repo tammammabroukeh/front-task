@@ -8,7 +8,7 @@ export default function Home() {
           Next.js · App Router · SSR
         </span>
         <h1 className="max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
-          FakeStore Product Showcase
+          Store Product Showcase
         </h1>
         <p className="max-w-xl text-base leading-7 text-foreground/70">
           A focused, server-rendered storefront demonstrating true SSR,

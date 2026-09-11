@@ -4,7 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { loadProduct } from "@/app/apis/services/products";
-import { formatPrice, titleCase } from "@/app/utils/format";
+import { formatPrice, titleCase } from "@/utils/format";
 
 /**
  * Product detail is rendered dynamically on every request (true SSR).

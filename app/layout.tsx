@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "FakeStore — Product Showcase",
-    template: "%s | FakeStore",
+    default: "Store — Product Showcase",
+    template: "%s | Store",
   },
   description:
-    "A server-rendered product showcase built with Next.js App Router, powered by FakeStoreAPI.",
+    "A server-rendered product showcase built with Next.js App Router, powered by StoreAPI.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

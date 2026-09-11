@@ -3,7 +3,7 @@ import type { ZodType } from "zod";
 import { ErrorMessages } from "@/constants/errors";
 
 import { FetchError } from "./types/fetch-error";
-import { normalizeUrl } from "../utils/normalizeUrl";
+import { normalizeUrl } from "../../utils/normalizeUrl";
 
 /**
  * Base API fetcher for the whole app.
