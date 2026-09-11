@@ -26,7 +26,7 @@ export function Navbar() {
     <header className="sticky top-0 z-40 border-b border-foreground/10 bg-background/80 backdrop-blur">
       <nav className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
         <Link href={ROUTES.HOME} className="text-sm font-semibold tracking-tight">
-          FakeStore
+          Store
         </Link>
 
         <ul className="flex items-center gap-1">
