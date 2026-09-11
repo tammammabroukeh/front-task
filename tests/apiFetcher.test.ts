@@ -36,6 +36,37 @@ describe("apiFetcher", () => {
     expect(data).toEqual({ id: 1, title: "Item" });
   });
 
+  test("sends browser-like headers and no Content-Type on GET", async () => {
+    let capturedInit: RequestInit | undefined;
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      capturedInit = init;
+      return jsonResponse({ ok: true });
+    }) as FetchFn;
+
+    await apiFetcher("/x");
+
+    const headers = capturedInit?.headers as Record<string, string>;
+    expect(headers["User-Agent"]).toContain("Mozilla/5.0");
+    expect(headers.Accept).toContain("application/json");
+    expect(headers["Content-Type"]).toBeUndefined();
+  });
+
+  test("sets Content-Type when a JSON body is sent", async () => {
+    let capturedInit: RequestInit | undefined;
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      capturedInit = init;
+      return jsonResponse({ ok: true });
+    }) as FetchFn;
+
+    await apiFetcher("/x", {
+      method: "POST",
+      body: JSON.stringify({ a: 1 }),
+    });
+
+    const headers = capturedInit?.headers as Record<string, string>;
+    expect(headers["Content-Type"]).toBe("application/json");
+  });
+
   test("returns null for an empty 200 body (FakeStore missing-resource case)", async () => {
     stubFetch(
       new Response("", {

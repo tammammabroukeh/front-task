@@ -22,7 +22,15 @@ export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
   const { id } = await params;
-  const product = await loadProduct(id); // memoized — no double fetch
+
+  // Metadata generation must never throw — an error here breaks SSR before the
+  // page's error boundary can render. Fall back to a safe title on failure.
+  let product: Awaited<ReturnType<typeof loadProduct>> = null;
+  try {
+    product = await loadProduct(id); // memoized — no double fetch
+  } catch {
+    return { title: "Product" };
+  }
 
   if (!product) {
     return {
