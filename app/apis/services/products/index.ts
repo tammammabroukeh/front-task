@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import apiFetcher, { type ApiRequestOptions } from "@/app/apis/api.instance";
 
 import {
@@ -84,3 +86,14 @@ function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(Math.max(value, min), max);
 }
+
+/**
+ * Request-memoized single-product loader.
+ *
+ * `React.cache` scopes memoization to the current request, so calling this in
+ * both `generateMetadata` and the page component triggers only one upstream
+ * fetch. Returns `null` for missing/invalid products.
+ */
+export const loadProduct = cache((id: string) =>
+  productsRepository.getProduct(id),
+);
