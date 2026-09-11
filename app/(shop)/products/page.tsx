@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import { productsRepository } from "@/app/apis/services/products";
-import { Pagination } from "@/app/components/products/Pagination";
-import { ProductCard } from "@/app/components/products/ProductCard";
+import { Pagination } from "@/components/products/Pagination";
+import { ProductCard } from "@/components/products/ProductCard";
 import { applySimulation, parseSimulate } from "@/utils/devSimulate";
 
 export const metadata: Metadata = {

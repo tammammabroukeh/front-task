@@ -4,9 +4,6 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-24 text-center">
       <div className="flex flex-col items-center gap-4">
-        <span className="rounded-full border border-foreground/15 px-3 py-1 text-xs font-medium uppercase tracking-widest text-foreground/60">
-          Next.js · App Router · SSR
-        </span>
         <h1 className="max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
           Store Product Showcase
         </h1>
