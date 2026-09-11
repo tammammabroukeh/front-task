@@ -1,8 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { z } from "zod";
-
 import { ROUTES } from "@/constants/routes";
+import { loginSchema } from "@/schemas/LoginSchema";
 
 /**
  * NextAuth v5 (Auth.js) configuration.
@@ -12,11 +11,6 @@ import { ROUTES } from "@/constants/routes";
  * (ADMIN_EMAIL / ADMIN_PASSWORD). Sessions use the JWT strategy so the guard
  * can be enforced purely server-side via a cookie.
  */
-
-const credentialsSchema = z.object({
-  email: z.email(),
-  password: z.string().min(1),
-});
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
@@ -33,7 +27,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       authorize: async (raw) => {
-        const parsed = credentialsSchema.safeParse(raw);
+        const parsed = loginSchema.safeParse(raw);
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;

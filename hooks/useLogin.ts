@@ -6,7 +6,7 @@ import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { ROUTES } from "@/constants/routes";
-import { loginSchema, type LoginFormValues } from "@/app/admin/login/schema";
+import { loginSchema, type LoginFormValues } from "@/schemas/LoginSchema";
 
 export interface UseLoginResult {
   form: UseFormReturn<LoginFormValues>;
