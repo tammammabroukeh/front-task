@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,7 +21,6 @@ export interface UseLoginResult {
  * presentational.
  */
 export function useLogin(): UseLoginResult {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? ROUTES.ADMIN;
 
@@ -31,6 +30,8 @@ export function useLogin(): UseLoginResult {
   });
 
   const submit = async (values: LoginFormValues) => {
+    // Validate the credentials without redirecting so we can surface a
+    // form-level error inline when they're wrong.
     const result = await signIn("credentials", {
       ...values,
       redirect: false,
@@ -44,9 +45,7 @@ export function useLogin(): UseLoginResult {
       });
       return;
     }
-
-    router.replace(callbackUrl);
-    router.refresh();
+    window.location.assign(callbackUrl);
   };
 
   return {
